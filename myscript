@@ -1,0 +1,38 @@
+#!/bin/bash
+> result.txt
+sed -i '20s/wall-solid/wall/' constant/polyMesh/boundary
+#sed -i '39s/frontandback/frontAndBack/' constant/polyMesh/boundary
+
+sed -i '55s/(U p)/(p U)/' system/controlDict
+sed -i '26d' 0/U
+sed -i '26i\        value           uniform (1 0 0);' 0/U
+sed -i '20d' constant/transportProperties
+sed -i '20i\nu              1;' constant/transportProperties
+
+viscosity=(1.00481e-06 1.5e-06 2e-06)
+velocity=(1.25 5.41 6.89)
+
+for i in ${viscosity[@]}; do
+	sed -i '20s/1/'$i'/g' constant/transportProperties
+	echo "viscosity = $i" >> result.txt
+	for j in ${velocity[@]}
+		do  
+		sed -i '26s/1/'$j'/g' 0/U
+		simpleFoam
+		echo `tail -n 1 < postProcessing/PressureInlet/0/surfaceFieldValue_0.dat` >> result.txt
+		sed -i '26s/'$j'/1/g' 0/U
+	done
+	sed -i '26s/1/-1/' 0/U
+	for j in ${velocity[@]}; do
+	        sed -i '26s/1/'$j'/g' 0/U
+        	simpleFoam
+        	echo `tail -n 1 < postProcessing/PressureInlet/0/surfaceFieldValue_0.dat` >> result.txt
+        	sed -i '26s/'$j'/1/g' 0/U
+	done
+	sed -i '20s/'$i'/1/g' constant/transportProperties
+	sed -i '26s/-1/1/' 0/U
+	echo "************************************" >> result.txt
+done
+sed -i 's/\./,/g' result.txt
+sed -i 's/e/E/g' result.txt
+
